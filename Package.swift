@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "Snapper",
+    name: "Qwikshot",
     platforms: [.macOS(.v15)],
     targets: [
-        .executableTarget(name: "Snapper", path: "Sources/Snapper")
+        .executableTarget(name: "Qwikshot", path: "Sources/Qwikshot")
     ],
     swiftLanguageModes: [.v5]
 )

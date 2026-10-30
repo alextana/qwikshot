@@ -50,7 +50,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         let window = EditorWindow(contentRect: NSRect(origin: .zero, size: size),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
-        window.title = "Snapper"
+        window.title = "Qwikshot"
         window.minSize = NSSize(width: 860, height: 320)
         window.isReleasedWhenClosed = false
         window.center()

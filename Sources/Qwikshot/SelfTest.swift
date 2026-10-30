@@ -1,7 +1,7 @@
 import AppKit
 import ImageIO
 
-/// `Snapper --render-test out.png` draws every annotation over a synthetic image,
+/// `Qwikshot --render-test out.png` draws every annotation over a synthetic image,
 /// so the renderer can be checked without Screen Recording permission.
 enum SelfTest {
     static func run(output: URL) -> Bool {
@@ -17,7 +17,7 @@ enum SelfTest {
         var highlight = item(.highlighter, CGPoint(x: 400, y: 330), CGPoint(x: 400, y: 330), .systemYellow)
         highlight.points = [CGPoint(x: 400, y: 330), CGPoint(x: 740, y: 330)]
         var text = item(.text, CGPoint(x: 400, y: 380), CGPoint(x: 400, y: 380))
-        text.text = "Hello Snapper"
+        text.text = "Hello Qwikshot"
         var step1 = item(.step, CGPoint(x: 80, y: 420), CGPoint(x: 80, y: 420))
         step1.number = 1
         var step2 = item(.step, CGPoint(x: 140, y: 420), CGPoint(x: 140, y: 420), .systemBlue)
@@ -37,7 +37,7 @@ enum SelfTest {
               cropped.width == 600, cropped.height == 400,
               Store.write(flat, scale: scale, to: output, type: .png),
               let reloaded = Store.load(output), reloaded.scale == scale,
-              let recognized = try? OCR.text(in: flat), recognized.contains("Hello Snapper") else {
+              let recognized = try? OCR.text(in: flat), recognized.contains("Hello Qwikshot") else {
             print("render test FAILED")
             return false
         }

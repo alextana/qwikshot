@@ -65,7 +65,7 @@ enum SettingsWindow {
     static func show() {
         if window == nil {
             let created = NSWindow(contentViewController: NSHostingController(rootView: SettingsView()))
-            created.title = "Snapper Settings"
+            created.title = "Qwikshot Settings"
             created.styleMask = [.titled, .closable]
             created.isReleasedWhenClosed = false
             created.center()

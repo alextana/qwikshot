@@ -47,8 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let main = NSMenu()
 
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Quit Snapper", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        main.addItem(submenu: appMenu, title: "Snapper")
+        appMenu.addItem(withTitle: "Quit Qwikshot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        main.addItem(submenu: appMenu, title: "Qwikshot")
 
         let fileMenu = NSMenu(title: "File")
         fileMenu.addItem(withTitle: "Save…", action: #selector(NSDocument.save(_:)), keyEquivalent: "s")
@@ -86,7 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
 
         menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
-        menu.addItem(withTitle: "Quit Snapper", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit Qwikshot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         return menu
     }
 
@@ -105,7 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(withTitle: "No Captures Yet", action: nil, keyEquivalent: "")
         }
         for url in files {
-            let name = url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "Snapper ", with: "")
+            let name = url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "Qwikshot ", with: "")
             let item = menu.addItem(withTitle: name, action: #selector(openRecent), keyEquivalent: "")
             item.target = self
             item.representedObject = url
@@ -114,7 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func setStatusIcon(recording: Bool) {
         let symbol = recording ? "stop.circle.fill" : "camera.viewfinder"
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Snapper")
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Qwikshot")
         image?.isTemplate = !recording
         statusItem.button?.image = image
         statusItem.button?.contentTintColor = recording ? .systemRed : nil
@@ -142,8 +142,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if Capture.hasPermission() { return true }
         CGRequestScreenCaptureAccess()
         let alert = NSAlert()
-        alert.messageText = "Snapper needs Screen Recording permission"
-        alert.informativeText = "Turn on Snapper under Privacy & Security > Screen & System Audio Recording, then reopen the app."
+        alert.messageText = "Qwikshot needs Screen Recording permission"
+        alert.informativeText = "Turn on Qwikshot under Privacy & Security > Screen & System Audio Recording, then reopen the app."
         alert.addButton(withTitle: "Open Settings")
         alert.addButton(withTitle: "Cancel")
         NSApp.activate(ignoringOtherApps: true)

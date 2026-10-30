@@ -1,24 +1,24 @@
 #!/bin/zsh
-# Builds Snapper.app next to this script, signed ad hoc.
+# Builds Qwikshot.app next to this script, signed ad hoc.
 set -euo pipefail
 cd "${0:A:h}"
 
 swift build -c release
 
-APP=Snapper.app
+APP=Qwikshot.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp .build/release/Snapper "$APP/Contents/MacOS/Snapper"
+cp .build/release/Qwikshot "$APP/Contents/MacOS/Qwikshot"
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>Snapper</string>
-    <key>CFBundleDisplayName</key><string>Snapper</string>
-    <key>CFBundleIdentifier</key><string>local.snapper.app</string>
-    <key>CFBundleExecutable</key><string>Snapper</string>
+    <key>CFBundleName</key><string>Qwikshot</string>
+    <key>CFBundleDisplayName</key><string>Qwikshot</string>
+    <key>CFBundleIdentifier</key><string>local.qwikshot.app</string>
+    <key>CFBundleExecutable</key><string>Qwikshot</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>1.0</string>
     <key>CFBundleVersion</key><string>1</string>
@@ -29,5 +29,5 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-codesign --force --sign - --identifier local.snapper.app "$APP"
+codesign --force --sign - --identifier local.qwikshot.app "$APP"
 echo "Built $PWD/$APP"

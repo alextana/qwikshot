@@ -1,4 +1,4 @@
-# Snapper
+# Qwikshot
 
 A local menu bar screenshot tool for macOS 15 or later. No account, no network access.
 
@@ -8,11 +8,11 @@ A local menu bar screenshot tool for macOS 15 or later. No account, no network a
 ./build.sh
 ```
 
-This produces `Snapper.app`. Move it to `/Applications` and open it. On first capture, turn on
-Snapper under Privacy & Security > Screen & System Audio Recording, then reopen the app.
+This produces `Qwikshot.app`. Move it to `/Applications` and open it. On first capture, turn on
+Qwikshot under Privacy & Security > Screen & System Audio Recording, then reopen the app.
 
 The app is signed ad hoc, so macOS treats each rebuild as a new app. After rebuilding, remove
-Snapper from that permission list and add it again.
+Qwikshot from that permission list and add it again.
 
 ## Shortcuts
 
@@ -33,13 +33,13 @@ N numbered step, C crop. Shift constrains shapes and lines. ⌘Z undo, ⇧⌘Z r
 
 ## Files
 
-- Captures: the last 30 are kept in `~/Library/Application Support/Snapper/History`.
+- Captures: the last 30 are kept in `~/Library/Application Support/Qwikshot/History`.
 - Saves and recordings: the folder chosen in Settings (Desktop by default).
 
 ## Test
 
 ```bash
-.build/release/Snapper --render-test /tmp/snapper-test.png
+.build/release/Qwikshot --render-test /tmp/qwikshot-test.png
 ```
 
 Renders every annotation type, then checks crop sizing, PNG DPI, and OCR. It needs no permissions.

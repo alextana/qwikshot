@@ -13,7 +13,7 @@ final class HotKeys {
         let id = UInt32(handlers.count + 1)
         handlers[id] = handler
         var ref: EventHotKeyRef?
-        let hotKeyID = EventHotKeyID(signature: OSType(0x534E_5052), id: id)
+        let hotKeyID = EventHotKeyID(signature: OSType(0x5157_494B), id: id)
         let status = RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers), hotKeyID,
                                          GetApplicationEventTarget(), 0, &ref)
         if status == noErr, let ref { refs.append(ref) }

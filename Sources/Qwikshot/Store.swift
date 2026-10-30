@@ -25,7 +25,7 @@ enum Store {
 
     static var historyFolder: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let url = base.appendingPathComponent("Snapper/History", isDirectory: true)
+        let url = base.appendingPathComponent("Qwikshot/History", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
@@ -34,7 +34,7 @@ enum Store {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd 'at' HH.mm.ss"
-        return "Snapper \(formatter.string(from: Date())).\(ext)"
+        return "Qwikshot \(formatter.string(from: Date())).\(ext)"
     }
 
     static func uniqueURL(in folder: URL, name: String) -> URL {
