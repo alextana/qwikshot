@@ -2,7 +2,7 @@ import AppKit
 import CoreImage
 
 enum Tool: Int, CaseIterable {
-    case select, arrow, line, rectangle, ellipse, pen, highlighter, text, pixelate, step, crop
+    case select, arrow, line, rectangle, ellipse, pen, highlighter, text, pixelate, focus, step, crop
 
     var symbol: String {
         switch self {
@@ -15,6 +15,7 @@ enum Tool: Int, CaseIterable {
         case .highlighter: "highlighter"
         case .text: "textformat"
         case .pixelate: "square.grid.3x3.fill"
+        case .focus: "viewfinder"
         case .step: "1.circle.fill"
         case .crop: "crop"
         }
@@ -32,13 +33,14 @@ enum Tool: Int, CaseIterable {
         case .highlighter: "h"
         case .text: "t"
         case .pixelate: "b"
+        case .focus: "f"
         case .step: "n"
         case .crop: "c"
         }
     }
 
     var usesTwoPoints: Bool {
-        [.arrow, .line, .rectangle, .ellipse, .pixelate].contains(self)
+        [.arrow, .line, .rectangle, .ellipse, .pixelate, .focus].contains(self)
     }
 }
 
@@ -91,7 +93,7 @@ struct Annotation {
         switch tool {
         case .arrow, .line:
             return Self.distance(from: point, toSegment: a, b) <= max(width, slop)
-        case .rectangle:
+        case .rectangle, .focus:
             return rect.insetBy(dx: -slop, dy: -slop).contains(point)
                 && !rect.insetBy(dx: width + slop, dy: width + slop).contains(point)
         case .pen, .highlighter:
@@ -119,15 +121,9 @@ final class Renderer {
     let size: CGSize
     let scale: CGFloat
 
-    /// Pixelated once for the whole image: a pixelate annotation just clips to it.
-    private lazy var pixelated: CGImage? = {
-        let input = CIImage(cgImage: base)
-        guard let filter = CIFilter(name: "CIPixellate") else { return nil }
-        filter.setValue(input.clampedToExtent(), forKey: kCIInputImageKey)
-        filter.setValue(10 * scale, forKey: kCIInputScaleKey)
-        guard let output = filter.outputImage else { return nil }
-        return CIContext().createCGImage(output, from: input.extent)
-    }()
+    /// Filtered once for the whole image: annotations just clip to these.
+    private lazy var pixelated: CGImage? = filtered("CIPixellate", [kCIInputScaleKey: 10 * scale])
+    private lazy var blurred: CGImage? = filtered("CIGaussianBlur", [kCIInputRadiusKey: 8 * scale])
 
     init(base: CGImage, scale: CGFloat) {
         self.base = base
@@ -138,9 +134,35 @@ final class Renderer {
     func render(_ annotations: [Annotation], crop: CGRect?, in ctx: CGContext) {
         ctx.saveGState()
         if let crop { ctx.translateBy(x: -crop.minX, y: -crop.minY) }
-        drawImage(base, in: ctx)
+        drawBackdrop(focusing: annotations.filter { $0.tool == .focus }.map(\.rect), in: ctx)
         for annotation in annotations { draw(annotation, in: ctx) }
         ctx.restoreGState()
+    }
+
+    /// The blur belongs to the image, not the annotation stack, so it goes down first:
+    /// annotations stay sharp whichever order they were added in.
+    private func drawBackdrop(focusing rects: [CGRect], in ctx: CGContext) {
+        guard !rects.isEmpty, let blurred else {
+            drawImage(base, in: ctx)
+            return
+        }
+        drawImage(blurred, in: ctx)
+        for rect in rects {
+            ctx.saveGState()
+            ctx.clip(to: rect)
+            drawImage(base, in: ctx)
+            ctx.restoreGState()
+        }
+    }
+
+    /// Clamped first so edges don't fade, and kept in the source color space
+    /// so filtered areas line up with the original pixels around them.
+    private func filtered(_ name: String, _ parameters: [String: Any]) -> CGImage? {
+        let input = CIImage(cgImage: base)
+        guard let filter = CIFilter(name: name, parameters: parameters) else { return nil }
+        filter.setValue(input.clampedToExtent(), forKey: kCIInputImageKey)
+        guard let output = filter.outputImage else { return nil }
+        return CIContext().createCGImage(output, from: input.extent, format: .RGBA8, colorSpace: base.colorSpace)
     }
 
     func flatten(_ annotations: [Annotation], crop: CGRect?) -> CGImage? {
@@ -168,7 +190,7 @@ final class Renderer {
         defer { ctx.restoreGState() }
         let color = (item.color.usingColorSpace(.sRGB) ?? item.color).cgColor
 
-        if item.tool != .pixelate && item.tool != .highlighter {
+        if ![.pixelate, .highlighter, .focus].contains(item.tool) {
             ctx.setShadow(offset: CGSize(width: 0, height: -1), blur: 3,
                           color: NSColor.black.withAlphaComponent(0.35).cgColor)
         }
@@ -179,7 +201,7 @@ final class Renderer {
         ctx.setLineJoin(.round)
 
         switch item.tool {
-        case .select, .crop:
+        case .select, .crop, .focus:
             break
         case .arrow:
             ctx.addPath(arrowPath(from: item.a, to: item.b, width: item.width))

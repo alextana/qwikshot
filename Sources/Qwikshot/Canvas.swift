@@ -105,7 +105,7 @@ final class CanvasView: NSView, NSTextFieldDelegate {
         guard event.modifierFlags.contains(.shift) else { return point }
         let dx = point.x - start.x, dy = point.y - start.y
         switch tool {
-        case .rectangle, .ellipse, .pixelate:
+        case .rectangle, .ellipse, .pixelate, .focus:
             let side = max(abs(dx), abs(dy))
             return CGPoint(x: start.x + (dx < 0 ? -side : side), y: start.y + (dy < 0 ? -side : side))
         case .arrow, .line:

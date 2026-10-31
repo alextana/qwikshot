@@ -45,13 +45,13 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         canvas = CanvasView(shot: shot)
 
         let visible = (Capture.screenUnderMouse()?.visibleFrame.size) ?? NSSize(width: 1280, height: 800)
-        let size = NSSize(width: min(max(renderedWidth(shot) + 80, 860), visible.width * 0.9),
+        let size = NSSize(width: min(max(renderedWidth(shot) + 80, 900), visible.width * 0.9),
                           height: min(renderedHeight(shot) + 140, visible.height * 0.9))
         let window = EditorWindow(contentRect: NSRect(origin: .zero, size: size),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
         window.title = "Qwikshot"
-        window.minSize = NSSize(width: 860, height: 320)
+        window.minSize = NSSize(width: 900, height: 320)
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)

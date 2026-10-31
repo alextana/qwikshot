@@ -29,9 +29,20 @@ enum SelfTest {
             pen, highlight, text, step1, step2,
             item(.ellipse, CGPoint(x: 220, y: 380), CGPoint(x: 360, y: 470), .systemOrange),
             item(.pixelate, CGPoint(x: 600, y: 200), CGPoint(x: 760, y: 280)),
+            item(.focus, CGPoint(x: 40, y: 40), CGPoint(x: 320, y: 200)),
         ]
 
-        guard let flat = renderer.flatten(annotations, crop: nil),
+        // The checker squares meet at multiples of 40 pixels, where a blur changes the most.
+        let focusRect = item(.focus, CGPoint(x: 100, y: 100), CGPoint(x: 300, y: 250))
+        func changed(_ image: CGImage, x: Int, y: Int) -> Int {
+            abs(Int(pixel(image, x: x, y: y)[1]) - Int(pixel(base, x: x, y: y)[1]))
+        }
+
+        guard let focused = renderer.flatten([focusRect], crop: nil),
+              changed(focused, x: 398, y: 250) <= 1,            // inside stays sharp
+              changed(focused, x: 798, y: 250) > 8,             // right of the rectangle
+              changed(focused, x: 398, y: 750) > 8,             // below it, which catches a flipped clip
+              let flat = renderer.flatten(annotations, crop: nil),
               flat.width == base.width, flat.height == base.height,
               let cropped = renderer.flatten(annotations, crop: CGRect(x: 100, y: 50, width: 300, height: 200)),
               cropped.width == 600, cropped.height == 400,
@@ -43,6 +54,18 @@ enum SelfTest {
         }
         print("render test passed: \(output.path)")
         return true
+    }
+
+    /// RGBA of the pixel at `x`, `y`, measured from the top left.
+    private static func pixel(_ image: CGImage, x: Int, y: Int) -> [UInt8] {
+        var bytes = [UInt8](repeating: 0, count: 4)
+        bytes.withUnsafeMutableBytes { buffer in
+            let ctx = CGContext(data: buffer.baseAddress, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            ctx?.draw(image, in: CGRect(x: -x, y: y + 1 - image.height, width: image.width, height: image.height))
+        }
+        return bytes
     }
 
     private static func makeBase(width: Int, height: Int) -> CGImage? {

@@ -29,7 +29,8 @@ Shortcuts are set in `AppDelegate.applicationDidFinishLaunching`.
 ## Editor
 
 Keys: V select, A arrow, L line, R rectangle, O ellipse, P pen, H highlighter, T text, B pixelate,
-N numbered step, C crop. Shift constrains shapes and lines. ⌘Z undo, ⇧⌘Z redo, ⌘C copy, ⌘S save.
+F focus (blurs everything outside a rectangle), N numbered step, C crop. Shift constrains shapes and
+lines. ⌘Z undo, ⇧⌘Z redo, ⌘C copy, ⌘S save.
 
 ## Files
 
