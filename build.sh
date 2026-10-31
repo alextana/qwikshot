@@ -1,5 +1,6 @@
 #!/bin/zsh
-# Builds Qwikshot.app next to this script, signed ad hoc.
+# Builds Qwikshot.app next to this script. Signs it with the identity from
+# Scripts/setup-signing.sh if there is one, otherwise ad hoc.
 set -euo pipefail
 cd "${0:A:h}"
 
@@ -31,5 +32,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-codesign --force --sign - --identifier local.qwikshot.app "$APP"
+IDENTITY="Qwikshot Local Signing"
+security find-certificate -c "$IDENTITY" >/dev/null 2>&1 || IDENTITY=-
+codesign --force --sign "$IDENTITY" --identifier local.qwikshot.app "$APP"
 echo "Built $PWD/$APP"

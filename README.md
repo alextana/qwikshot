@@ -2,17 +2,19 @@
 
 A local menu bar screenshot tool for macOS 26 or later. No account, no network access.
 
-## Build
+## Install
 
 ```bash
-./build.sh
+./install.sh
 ```
 
-This produces `Qwikshot.app`. Move it to `/Applications` and open it. On first capture, turn on
-Qwikshot under Privacy & Security > Screen & System Audio Recording, then reopen the app.
+This builds `Qwikshot.app`, replaces the copy in `/Applications`, and opens it. Run it again to
+update. On first capture, turn on Qwikshot under Privacy & Security > Screen & System Audio
+Recording, then reopen the app.
 
-The app is signed ad hoc, so macOS treats each rebuild as a new app. After rebuilding, remove
-Qwikshot from that permission list and add it again.
+The first run creates a self-signed certificate, "Qwikshot Local Signing", in your login keychain.
+Every build is signed with it, so macOS keeps the permission across updates. To build without
+installing, run `./build.sh`, which signs ad hoc if the certificate doesn't exist.
 
 ## Shortcuts
 
