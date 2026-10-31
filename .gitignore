@@ -3,3 +3,4 @@
 .swiftpm/
 Qwikshot.app/
 render-test.png
+dist/

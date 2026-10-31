@@ -11,6 +11,7 @@ private struct SettingsView: View {
     @AppStorage(Prefs.recordClicks) private var recordClicks = true
     @State private var folder = Prefs.saveFolder
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var checksAutomatically = Updates.shared.automaticallyChecks
 
     private static let shortcuts = [
         ("Capture Area", "⌥⇧4"), ("Capture Window", "⌥⇧5"), ("Capture Full Screen", "⌥⇧3"),
@@ -42,6 +43,14 @@ private struct SettingsView: View {
                 ForEach(Self.shortcuts, id: \.0) { title, keys in
                     LabeledContent(title, value: keys)
                 }
+            }
+            Section("Updates") {
+                LabeledContent("Version", value: Updates.version)
+                Toggle("Check for updates automatically", isOn: $checksAutomatically)
+                    .onChange(of: checksAutomatically) { _, enabled in
+                        Updates.shared.automaticallyChecks = enabled
+                    }
+                Button("Check for Updates…") { Updates.shared.checkForUpdates() }
             }
             Section {
                 Toggle("Open at login", isOn: $launchAtLogin)

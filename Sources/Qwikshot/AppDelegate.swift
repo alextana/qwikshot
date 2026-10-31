@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         HotKeys.shared.register(keyCode: kVK_ANSI_7, modifiers: modifiers) { [weak self] in self?.captureText() }
 
         recorder.onFinish = { [weak self] result in self?.recordingFinished(result) }
+        Updates.shared.start()
 
         if let index = arguments.firstIndex(of: "--edit"), arguments.indices.contains(index + 1),
            let shot = Store.load(URL(fileURLWithPath: arguments[index + 1])) {
@@ -58,6 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let main = NSMenu()
 
         let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "Check for Updates…", action: #selector(Updates.checkForUpdates), keyEquivalent: "").target = Updates.shared
         appMenu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit Qwikshot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -98,6 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(recent)
         menu.addItem(.separator())
 
+        menu.addItem(withTitle: "Check for Updates…", action: #selector(Updates.checkForUpdates), keyEquivalent: "").target = Updates.shared
         menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
         menu.addItem(withTitle: "Quit Qwikshot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         return menu

@@ -1,8 +1,17 @@
 # Qwikshot
 
-A local menu bar screenshot tool for macOS 26 or later. No account, no network access.
+A local menu bar screenshot tool for macOS 26 or later. Open source under the MIT license. No account needed, and the only
+network use is checking for updates.
 
-## Install
+## Download
+
+Get the latest zip from [Releases](https://github.com/alextana/qwikshot/releases), unzip it, and
+move `Qwikshot.app` to `/Applications`. It needs macOS 26 or later on Apple silicon.
+
+Qwikshot isn't notarized, so macOS blocks it the first time you open it. Go to System Settings >
+Privacy & Security and choose Open Anyway. After that, use Check for Updates… in the menu.
+
+## Build from source
 
 ```bash
 ./install.sh
@@ -54,6 +63,17 @@ permissions.
 
 Writes each window's layout to a PNG. Liquid Glass only composites on screen, so these show layout,
 not the material.
+
+## Release
+
+1. Raise the number in `VERSION` and commit.
+2. Run `Scripts/release.sh`.
+
+This builds, signs and publishes a GitHub release, and every installed copy finds it through the
+update feed in `build.sh`. Releases need the "Qwikshot Local Signing" certificate and the Sparkle
+private key, both in the maintainer's login keychain. If you fork the project, generate your own
+with `Scripts/setup-signing.sh` and Sparkle's `generate_keys`, then replace the feed URL and
+`SUPublicEDKey` in `build.sh`.
 
 ## Design
 
