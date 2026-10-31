@@ -43,10 +43,18 @@ private final class ColorPanelRelay: NSObject {
     @objc func colorChanged(_ sender: NSColorPanel) { onChange(sender.color) }
 }
 
+/// Where each tool button sits, so the selection circle can find it.
+private struct ToolBoundsKey: PreferenceKey {
+    static let defaultValue: [Tool: Anchor<CGRect>] = [:]
+
+    static func reduce(value: inout [Tool: Anchor<CGRect>], nextValue: () -> [Tool: Anchor<CGRect>]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
 /// The floating tool palette: tools on the left, what they draw with on the right.
 struct ToolPalette: View {
     @Bindable var model: EditorModel
-    @Namespace private var selection
     @State private var showsWidth = false
 
     private static let groups: [[Tool]] = [
@@ -79,8 +87,24 @@ struct ToolPalette: View {
                 ForEach(Self.groups[index], id: \.self, content: toolButton)
             }
         }
+        .backgroundPreferenceValue(ToolBoundsKey.self, selectionIndicator)
         .padding(5)
         .glassEffect(.regular, in: .capsule)
+    }
+
+    /// One circle that travels between tools. Giving each tool its own would
+    /// fade one out and the next in, because they'd be separate views.
+    private func selectionIndicator(_ bounds: [Tool: Anchor<CGRect>]) -> some View {
+        GeometryReader { proxy in
+            if let anchor = bounds[model.tool] {
+                let rect = proxy[anchor]
+                Circle()
+                    .fill(.tint)
+                    .frame(width: rect.width, height: rect.height)
+                    .position(x: rect.midX, y: rect.midY)
+                    .animation(Motion.reduced ? nil : Motion.standard, value: model.tool)
+            }
+        }
     }
 
     private func toolButton(_ tool: Tool) -> some View {
@@ -90,14 +114,10 @@ struct ToolPalette: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(selected ? Color.white : Color.primary)
                 .frame(width: 32, height: 32)
-                .background {
-                    if selected {
-                        Circle().fill(.tint).matchedGeometryEffect(id: "selection", in: selection)
-                    }
-                }
                 .contentShape(Circle())
         }
         .buttonStyle(PressStyle())
+        .anchorPreference(key: ToolBoundsKey.self, value: .bounds) { [tool: $0] }
         .help("\(tool.title) (\(tool.key.uppercased()))")
         .accessibilityLabel(tool.title)
     }
