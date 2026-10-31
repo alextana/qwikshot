@@ -21,6 +21,23 @@ enum Tool: Int, CaseIterable {
         }
     }
 
+    var title: String {
+        switch self {
+        case .select: "Select"
+        case .arrow: "Arrow"
+        case .line: "Line"
+        case .rectangle: "Rectangle"
+        case .ellipse: "Ellipse"
+        case .pen: "Pen"
+        case .highlighter: "Highlighter"
+        case .text: "Text"
+        case .pixelate: "Pixelate"
+        case .focus: "Focus"
+        case .step: "Numbered Step"
+        case .crop: "Crop"
+        }
+    }
+
     /// Single-key shortcut, shown in the tool's tooltip.
     var key: Character {
         switch self {

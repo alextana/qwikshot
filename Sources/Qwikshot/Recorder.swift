@@ -1,6 +1,7 @@
 import AppKit
 import AVFoundation
 import ScreenCaptureKit
+import SwiftUI
 
 /// Records part of a display to an MP4 with ScreenCaptureKit.
 @MainActor
@@ -11,6 +12,7 @@ final class Recorder: NSObject {
     private var stream: SCStream?
     private var outputDelegate: OutputDelegate?
     private var border: NSWindow?
+    private var controls: NSWindow?
 
     /// `rect` is in view coordinates of `shot.screen`: bottom-left origin, points.
     func start(shot: DisplayShot, rect: CGRect) async throws {
@@ -46,6 +48,7 @@ final class Recorder: NSObject {
         outputDelegate = delegate
         isRecording = true
         showBorder(around: rect.offsetBy(dx: shot.screen.frame.minX, dy: shot.screen.frame.minY))
+        showControls(on: shot.screen)
     }
 
     func stop() {
@@ -60,6 +63,8 @@ final class Recorder: NSObject {
         outputDelegate = nil
         border?.orderOut(nil)
         border = nil
+        controls?.orderOut(nil)
+        controls = nil
         onFinish?(result)
     }
 
@@ -79,6 +84,39 @@ final class Recorder: NSObject {
         window.contentView = view
         window.orderFrontRegardless()
         border = window
+    }
+}
+
+private extension Recorder {
+    /// Always shows that recording is on and how to stop it.
+    func showControls(on screen: NSScreen) {
+        let size = NSSize(width: 240, height: 72)
+        let panel = FloatingPanel(size: size, level: .statusBar)
+        panel.contentView = PanelHostingView(rootView: RecordingControls(start: Date()) { [weak self] in self?.stop() })
+        panel.setFrameOrigin(NSPoint(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.maxY - size.height))
+        panel.orderFrontRegardless()
+        controls = panel
+    }
+}
+
+private struct RecordingControls: View {
+    let start: Date
+    let stop: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Circle().fill(.red).frame(width: 9, height: 9)
+            Text(start, style: .timer)
+                .font(.system(size: 13, weight: .semibold).monospacedDigit())
+            Button("Stop", systemImage: "stop.fill", action: stop)
+                .buttonStyle(.glassProminent)
+                .tint(.red)
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 7)
+        .padding(.vertical, 7)
+        .glassEffect(.regular, in: .capsule)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

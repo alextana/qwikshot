@@ -45,6 +45,18 @@ final class CanvasView: NSView, NSTextFieldDelegate {
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
+
+    /// The image sits on the window like a sheet of paper. An explicit path keeps redraws fast.
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        wantsLayer = true
+        layer?.shadowColor = NSColor.black.cgColor
+        layer?.shadowOpacity = 0.28
+        layer?.shadowRadius = 18
+        layer?.shadowOffset = CGSize(width: 0, height: -6)
+        layer?.shadowPath = CGPath(rect: CGRect(origin: .zero, size: newSize), transform: nil)
+    }
+
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     var canUndo: Bool { !undoStack.isEmpty }

@@ -1,6 +1,6 @@
 # Qwikshot
 
-A local menu bar screenshot tool for macOS 15 or later. No account, no network access.
+A local menu bar screenshot tool for macOS 26 or later. No account, no network access.
 
 ## Build
 
@@ -43,4 +43,18 @@ lines. ⌘Z undo, ⇧⌘Z redo, ⌘C copy, ⌘S save.
 .build/release/Qwikshot --render-test /tmp/qwikshot-test.png
 ```
 
-Renders every annotation type, then checks crop sizing, PNG DPI, and OCR. It needs no permissions.
+Renders every annotation type, then checks focus blur, crop sizing, PNG DPI, and OCR. It needs no
+permissions.
+
+```bash
+.build/release/Qwikshot --ui-snapshots /tmp/qwikshot-ui
+```
+
+Writes each window's layout to a PNG. Liquid Glass only composites on screen, so these show layout,
+not the material.
+
+## Design
+
+The interface uses Liquid Glass through SwiftUI, with a native toolbar in the editor. Springs are
+critically damped, panels leave the way they came, and Reduce Motion replaces movement with fades.
+`Scripts/make-icon.swift` regenerates the app icon.

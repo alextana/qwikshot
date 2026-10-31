@@ -1,13 +1,18 @@
 import AppKit
+import SwiftUI
 import UniformTypeIdentifiers
 
-/// Keeps the canvas centred when it's smaller than the viewport.
+/// Centres the canvas in the space left between the toolbar and the palette.
 private final class CenteringClipView: NSClipView {
     override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
         var rect = super.constrainBoundsRect(proposedBounds)
-        guard let document = documentView else { return rect }
+        guard let document = documentView, rect.width > 0 else { return rect }
+        let magnification = frame.width / rect.width
+        let top = contentInsets.top / magnification
+        let bottom = contentInsets.bottom / magnification
+        let visibleHeight = rect.height - top - bottom
         if rect.width > document.frame.width { rect.origin.x = (document.frame.width - rect.width) / 2 }
-        if rect.height > document.frame.height { rect.origin.y = (document.frame.height - rect.height) / 2 }
+        if visibleHeight > document.frame.height { rect.origin.y = -(top + (visibleHeight - document.frame.height) / 2) }
         return rect
     }
 }
@@ -20,7 +25,15 @@ private final class EditorWindow: NSWindow {
     @objc(saveDocument:) func save(_ sender: Any?) { controller?.saveAs() }
 }
 
-final class EditorWindowController: NSWindowController, NSWindowDelegate {
+private extension NSToolbarItem.Identifier {
+    static let undo = Self("undo")
+    static let redo = Self("redo")
+    static let pin = Self("pin")
+    static let copy = Self("copy")
+    static let save = Self("save")
+}
+
+final class EditorWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate {
     private static var open: [EditorWindowController] = []
 
     static func open(_ shot: Shot) {
@@ -33,106 +46,51 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
     private let canvas: CanvasView
     private let shot: Shot
+    private let model = EditorModel()
     private let scrollView = NSScrollView()
-    private let tools = NSSegmentedControl()
-    private let undoButton = NSButton()
-    private let redoButton = NSButton()
-    private let colorWell = NSColorWell()
-    private let palette: [NSColor] = [.systemRed, .systemOrange, .systemYellow, .systemGreen, .systemBlue, .black, .white]
+    private let palette: NSHostingView<ToolPalette>
+    private var undoItem: NSToolbarItem?
+    private var redoItem: NSToolbarItem?
 
     private init(shot: Shot) {
         self.shot = shot
         canvas = CanvasView(shot: shot)
+        palette = NSHostingView(rootView: ToolPalette(model: model))
 
         let visible = (Capture.screenUnderMouse()?.visibleFrame.size) ?? NSSize(width: 1280, height: 800)
-        let size = NSSize(width: min(max(renderedWidth(shot) + 80, 900), visible.width * 0.9),
-                          height: min(renderedHeight(shot) + 140, visible.height * 0.9))
+        let size = NSSize(width: min(max(canvas.frame.width + 96, 900), visible.width * 0.9),
+                          height: min(max(canvas.frame.height + 200, 560), visible.height * 0.9))
         let window = EditorWindow(contentRect: NSRect(origin: .zero, size: size),
-                                  styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                                  styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                                   backing: .buffered, defer: false)
         window.title = "Qwikshot"
-        window.minSize = NSSize(width: 900, height: 320)
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.minSize = NSSize(width: 800, height: 420)
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)
         window.controller = self
         window.delegate = self
-        buildUI(in: window)
 
-        canvas.onToolChange = { [weak self] tool in self?.tools.selectedSegment = tool.rawValue }
+        let toolbar = NSToolbar(identifier: "editor")
+        toolbar.delegate = self
+        toolbar.displayMode = .iconOnly
+        window.toolbarStyle = .unified
+        window.toolbar = toolbar
+
+        buildContent(in: window)
+
+        model.canvas = canvas
+        canvas.onToolChange = { [weak self] tool in self?.model.tool = tool }
         canvas.onCanvasResize = { [weak self] in self?.fit() }
-        canvas.onHistoryChange = { [weak self] in self?.refreshHistoryButtons() }
-        refreshHistoryButtons()
+        canvas.onHistoryChange = { [weak self] in self?.refreshHistoryItems() }
+        refreshHistoryItems()
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
-    private func buildUI(in window: NSWindow) {
-        let toolbar = NSStackView()
-        toolbar.orientation = .horizontal
-        toolbar.spacing = 10
-        toolbar.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
-        toolbar.translatesAutoresizingMaskIntoConstraints = false
-
-        tools.segmentCount = Tool.allCases.count
-        tools.trackingMode = .selectOne
-        tools.target = self
-        tools.action = #selector(toolChanged)
-        for tool in Tool.allCases {
-            tools.setImage(NSImage(systemSymbolName: tool.symbol, accessibilityDescription: "\(tool)"), forSegment: tool.rawValue)
-            tools.setWidth(32, forSegment: tool.rawValue)
-            tools.setToolTip("\(tool) (\(tool.key.uppercased()))", forSegment: tool.rawValue)
-        }
-        tools.selectedSegment = canvas.tool.rawValue
-        toolbar.addArrangedSubview(tools)
-
-        let swatches = NSStackView()
-        swatches.spacing = 4
-        for (index, color) in palette.enumerated() {
-            let swatch = NSButton(title: "", target: self, action: #selector(swatchPicked))
-            swatch.tag = index
-            swatch.isBordered = false
-            swatch.wantsLayer = true
-            swatch.layer?.backgroundColor = color.cgColor
-            swatch.layer?.cornerRadius = 8
-            swatch.layer?.borderWidth = 1
-            swatch.layer?.borderColor = NSColor.separatorColor.cgColor
-            swatch.widthAnchor.constraint(equalToConstant: 16).isActive = true
-            swatch.heightAnchor.constraint(equalToConstant: 16).isActive = true
-            swatches.addArrangedSubview(swatch)
-        }
-        toolbar.addArrangedSubview(swatches)
-
-        colorWell.color = canvas.color
-        colorWell.target = self
-        colorWell.action = #selector(colorChanged)
-        colorWell.colorWellStyle = .minimal
-        colorWell.widthAnchor.constraint(equalToConstant: 24).isActive = true
-        colorWell.heightAnchor.constraint(equalToConstant: 24).isActive = true
-        toolbar.addArrangedSubview(colorWell)
-
-        let slider = NSSlider(value: canvas.strokeWidth, minValue: 1, maxValue: 12, target: self, action: #selector(widthChanged))
-        slider.widthAnchor.constraint(equalToConstant: 80).isActive = true
-        slider.toolTip = "Stroke and text size"
-        toolbar.addArrangedSubview(slider)
-
-        let spacer = NSView()
-        spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        toolbar.addArrangedSubview(spacer)
-
-        configure(undoButton, symbol: "arrow.uturn.backward", tip: "Undo (⌘Z)", action: #selector(undo))
-        configure(redoButton, symbol: "arrow.uturn.forward", tip: "Redo (⇧⌘Z)", action: #selector(redo))
-        toolbar.addArrangedSubview(undoButton)
-        toolbar.addArrangedSubview(redoButton)
-
-        let pinButton = NSButton(), copyButton = NSButton(), saveButton = NSButton()
-        configure(pinButton, symbol: "pin", tip: "Pin to screen", action: #selector(pin))
-        configure(copyButton, symbol: "doc.on.doc", tip: "Copy (⌘C)", action: #selector(copyImage))
-        configure(saveButton, symbol: "square.and.arrow.down", tip: "Save As… (⌘S)", action: #selector(saveAs))
-        toolbar.addArrangedSubview(pinButton)
-        toolbar.addArrangedSubview(copyButton)
-        toolbar.addArrangedSubview(saveButton)
-
+    private func buildContent(in window: NSWindow) {
         let clip = CenteringClipView()
         clip.drawsBackground = false
         scrollView.contentView = clip
@@ -143,58 +101,95 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         scrollView.allowsMagnification = true
         scrollView.minMagnification = 0.05
         scrollView.maxMagnification = 8
-        scrollView.backgroundColor = NSColor(white: 0.16, alpha: 1)
+        scrollView.automaticallyAdjustsContentInsets = false
+        scrollView.backgroundColor = .underPageBackgroundColor
         scrollView.drawsBackground = true
         scrollView.translatesAutoresizingMaskIntoConstraints = false
 
+        palette.sizingOptions = .intrinsicContentSize
+        palette.translatesAutoresizingMaskIntoConstraints = false
+
         guard let content = window.contentView else { return }
-        content.addSubview(toolbar)
         content.addSubview(scrollView)
+        content.addSubview(palette)
         NSLayoutConstraint.activate([
-            toolbar.topAnchor.constraint(equalTo: content.topAnchor),
-            toolbar.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-            toolbar.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
+            scrollView.topAnchor.constraint(equalTo: content.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            palette.centerXAnchor.constraint(equalTo: content.centerXAnchor),
+            palette.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -8),
         ])
         window.makeFirstResponder(canvas)
     }
 
-    private func configure(_ button: NSButton, symbol: String, tip: String, action: Selector) {
-        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)
-        button.bezelStyle = .texturedRounded
-        button.target = self
-        button.action = action
-        button.toolTip = tip
+    // MARK: Toolbar
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [.undo, .redo, .flexibleSpace, .pin, .copy, .save]
     }
 
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarDefaultItemIdentifiers(toolbar)
+    }
+
+    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
+                 willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        switch identifier {
+        case .undo:
+            undoItem = item(identifier, "Undo", "arrow.uturn.backward", "Undo (⌘Z)", #selector(undo))
+            undoItem?.autovalidates = false
+            return undoItem
+        case .redo:
+            redoItem = item(identifier, "Redo", "arrow.uturn.forward", "Redo (⇧⌘Z)", #selector(redo))
+            redoItem?.autovalidates = false
+            return redoItem
+        case .pin:
+            return item(identifier, "Pin", "pin", "Pin to Screen", #selector(pin))
+        case .copy:
+            return item(identifier, "Copy", "doc.on.doc", "Copy (⌘C)", #selector(copyImage))
+        case .save:
+            let save = item(identifier, "Save", "square.and.arrow.down", "Save As… (⌘S)", #selector(saveAs))
+            save.style = .prominent
+            return save
+        default:
+            return nil
+        }
+    }
+
+    private func item(_ identifier: NSToolbarItem.Identifier, _ label: String, _ symbol: String,
+                      _ tip: String, _ action: Selector) -> NSToolbarItem {
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        item.label = label
+        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
+        item.toolTip = tip
+        item.target = self
+        item.action = action
+        item.isBordered = true
+        return item
+    }
+
+    private func refreshHistoryItems() {
+        undoItem?.isEnabled = canvas.canUndo
+        redoItem?.isEnabled = canvas.canRedo
+    }
+
+    // MARK: Layout
+
+    /// Fits the image between the toolbar and the palette. The scroll view still runs
+    /// under both, so a zoomed image passes beneath the glass.
     private func fit() {
-        window?.contentView?.layoutSubtreeIfNeeded()
-        let view = scrollView.contentSize
-        let canvasSize = canvas.frame.size
-        let padded = min((view.width - 32) / canvasSize.width, (view.height - 32) / canvasSize.height)
-        scrollView.magnification = min(1, padded)
+        guard let content = window?.contentView else { return }
+        content.layoutSubtreeIfNeeded()
+        let top = content.safeAreaInsets.top
+        let bottom = palette.fittingSize.height + 16
+        scrollView.contentInsets = NSEdgeInsets(top: top, left: 0, bottom: bottom, right: 0)
+        let available = NSSize(width: content.bounds.width - 48, height: content.bounds.height - top - bottom - 24)
+        scrollView.magnification = min(1, min(available.width / canvas.frame.width, available.height / canvas.frame.height))
     }
 
-    private func refreshHistoryButtons() {
-        undoButton.isEnabled = canvas.canUndo
-        redoButton.isEnabled = canvas.canRedo
-    }
+    // MARK: Actions
 
-    @objc private func toolChanged() {
-        canvas.tool = Tool(rawValue: tools.selectedSegment) ?? .select
-        window?.makeFirstResponder(canvas)
-    }
-
-    @objc private func swatchPicked(_ sender: NSButton) {
-        canvas.color = palette[sender.tag]
-        colorWell.color = palette[sender.tag]
-    }
-
-    @objc private func colorChanged() { canvas.color = colorWell.color }
-    @objc private func widthChanged(_ sender: NSSlider) { canvas.strokeWidth = CGFloat(sender.doubleValue) }
     @objc private func undo() { canvas.undo(nil) }
     @objc private func redo() { canvas.redo(nil) }
 
@@ -207,7 +202,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
     @objc func copyImage() {
         guard let image = canvas.flattened() else { return }
         Store.copy(image, scale: shot.scale)
-        Toast.show("Copied to clipboard")
+        Toast.show("Copied", symbol: "doc.on.doc.fill")
     }
 
     @objc func saveAs() {
@@ -223,10 +218,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
+    func windowDidEndLiveResize(_ notification: Notification) { fit() }
+
     func windowWillClose(_ notification: Notification) {
         Self.open.removeAll { $0 === self }
     }
 }
-
-private func renderedWidth(_ shot: Shot) -> CGFloat { CGFloat(shot.image.width) / shot.scale }
-private func renderedHeight(_ shot: Shot) -> CGFloat { CGFloat(shot.image.height) / shot.scale }

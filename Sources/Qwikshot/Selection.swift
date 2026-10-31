@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// Full-screen overlays over frozen display images, resolving to what the user picked.
 @MainActor
@@ -60,6 +61,44 @@ private final class OverlayWindow: NSWindow {
     override var canBecomeKey: Bool { true }
 }
 
+@Observable
+private final class OverlayHUDState {
+    var label: String?
+    var labelPosition: CGPoint = .zero
+    var selecting = false
+}
+
+/// Glass readouts over the frozen screen. Nothing here animates its position:
+/// the label stays glued to the pointer.
+private struct OverlayHUD: View {
+    let state: OverlayHUDState
+    let hint: String
+
+    var body: some View {
+        ZStack {
+            if let label = state.label {
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .glassEffect(.regular, in: .capsule)
+                    .position(state.labelPosition)
+            }
+            VStack {
+                Spacer()
+                Text(hint)
+                    .font(.system(size: 13, weight: .medium))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .glassEffect(.regular, in: .capsule)
+                    .opacity(state.selecting ? 0 : 1)
+                    .padding(.bottom, 56)
+            }
+            .animation(Motion.standard, value: state.selecting)
+        }
+    }
+}
+
 private final class OverlayView: NSView {
     private let shot: DisplayShot
     private let mode: SelectionSession.Mode
@@ -70,6 +109,7 @@ private final class OverlayView: NSView {
     private var cursor: NSPoint?
     private var hovered: WindowTarget?
     private lazy var pixelScale = CGFloat(shot.image.width) / shot.screen.frame.width
+    private let hud = OverlayHUDState()
 
     init(shot: DisplayShot, mode: SelectionSession.Mode, targets: [WindowTarget], session: SelectionSession) {
         self.shot = shot
@@ -77,6 +117,13 @@ private final class OverlayView: NSView {
         self.targets = targets
         self.session = session
         super.init(frame: NSRect(origin: .zero, size: shot.screen.frame.size))
+
+        let hint = mode == .area ? "Drag to select  ·  Return for full screen  ·  Esc to cancel"
+                                 : "Click a window  ·  Esc to cancel"
+        let host = PassthroughHostingView(rootView: OverlayHUD(state: hud, hint: hint))
+        host.frame = bounds
+        host.autoresizingMask = [.width, .height]
+        addSubview(host)
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -106,13 +153,32 @@ private final class OverlayView: NSView {
     override func mouseExited(with event: NSEvent) {
         cursor = nil
         hovered = nil
+        refreshHUD()
         needsDisplay = true
     }
 
     private func update(cursor point: NSPoint) {
         cursor = point
         if mode == .window { hovered = target(at: point) }
+        refreshHUD()
         needsDisplay = true
+    }
+
+    private func refreshHUD() {
+        hud.selecting = dragStart != nil
+        guard mode == .area, let cursor else {
+            hud.label = nil
+            return
+        }
+        if let selection {
+            hud.label = "\(Int(selection.width)) × \(Int(selection.height))"
+        } else {
+            hud.label = "\(Int(cursor.x)), \(Int(bounds.height - cursor.y))"
+        }
+        // SwiftUI measures from the top left. Stay clear of the pointer and the screen edges.
+        let x = cursor.x + 60 > bounds.width - 50 ? cursor.x - 60 : cursor.x + 60
+        let y = bounds.height - cursor.y + 28 > bounds.height - 20 ? bounds.height - cursor.y - 28 : bounds.height - cursor.y + 28
+        hud.labelPosition = CGPoint(x: x, y: y)
     }
 
     private func viewRect(for target: WindowTarget) -> CGRect {
@@ -125,13 +191,18 @@ private final class OverlayView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        if mode == .area { dragStart = point; cursor = point }
+        if mode == .area {
+            dragStart = point
+            cursor = point
+            refreshHUD()
+        }
     }
 
     override func mouseDragged(with event: NSEvent) {
         guard mode == .area else { return }
         let point = convert(event.locationInWindow, from: nil)
         cursor = NSPoint(x: min(max(point.x, 0), bounds.width), y: min(max(point.y, 0), bounds.height))
+        refreshHUD()
         needsDisplay = true
     }
 
@@ -144,6 +215,7 @@ private final class OverlayView: NSView {
         }
         guard let rect = selection, rect.width >= 3, rect.height >= 3 else {
             dragStart = nil
+            refreshHUD()
             needsDisplay = true
             return
         }
@@ -171,13 +243,17 @@ private final class OverlayView: NSView {
 
         let highlight = mode == .area ? selection : hovered.map { viewRect(for: $0) }
         ctx.saveGState()
-        ctx.setFillColor(NSColor.black.withAlphaComponent(0.4).cgColor)
+        ctx.setFillColor(NSColor.black.withAlphaComponent(0.35).cgColor)
         ctx.addRect(bounds)
         if let highlight { ctx.addRect(highlight) }
         ctx.fillPath(using: .evenOdd)
         ctx.restoreGState()
 
         if let highlight {
+            if mode == .window {
+                ctx.setFillColor(NSColor.controlAccentColor.withAlphaComponent(0.14).cgColor)
+                ctx.fill(highlight)
+            }
             ctx.setStrokeColor(NSColor.white.cgColor)
             ctx.setLineWidth(1)
             ctx.stroke(highlight.insetBy(dx: -0.5, dy: -0.5))
@@ -185,31 +261,14 @@ private final class OverlayView: NSView {
 
         guard let cursor else { return }
         if mode == .area {
-            if let selection {
-                label("\(Int(selection.width)) × \(Int(selection.height))", near: cursor)
-            } else {
+            if selection == nil {
                 ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.6).cgColor)
                 ctx.setLineWidth(1)
                 ctx.strokeLineSegments(between: [CGPoint(x: 0, y: cursor.y), CGPoint(x: bounds.width, y: cursor.y),
                                                  CGPoint(x: cursor.x, y: 0), CGPoint(x: cursor.x, y: bounds.height)])
-                label("\(Int(cursor.x)), \(Int(bounds.height - cursor.y))", near: cursor)
             }
             drawLoupe(ctx, at: cursor)
         }
-    }
-
-    private func label(_ text: String, near point: NSPoint) {
-        let string = NSAttributedString(string: text, attributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
-            .foregroundColor: NSColor.white,
-        ])
-        let size = string.size()
-        var pill = CGRect(x: point.x + 14, y: point.y - size.height - 20, width: size.width + 14, height: size.height + 6)
-        if pill.maxX > bounds.width { pill.origin.x = point.x - pill.width - 14 }
-        if pill.minY < 0 { pill.origin.y = point.y + 14 }
-        NSColor.black.withAlphaComponent(0.75).setFill()
-        NSBezierPath(roundedRect: pill, xRadius: 6, yRadius: 6).fill()
-        string.draw(at: CGPoint(x: pill.minX + 7, y: pill.minY + 3))
     }
 
     private func drawLoupe(_ ctx: CGContext, at point: NSPoint) {
@@ -234,6 +293,7 @@ private final class OverlayView: NSView {
         ctx.strokeLineSegments(between: [CGPoint(x: frame.midX, y: frame.minY), CGPoint(x: frame.midX, y: frame.maxY),
                                          CGPoint(x: frame.minX, y: frame.midY), CGPoint(x: frame.maxX, y: frame.midY)])
         ctx.restoreGState()
+        ctx.setShadow(offset: CGSize(width: 0, height: -3), blur: 12, color: NSColor.black.withAlphaComponent(0.4).cgColor)
         ctx.setStrokeColor(NSColor.white.cgColor)
         ctx.setLineWidth(2)
         ctx.addPath(circle)

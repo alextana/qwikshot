@@ -20,6 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             exit(passed ? 0 : 1)
         }
 
+        if let index = arguments.firstIndex(of: "--ui-snapshots"), arguments.indices.contains(index + 1) {
+            SelfTest.snapshotUI(folder: URL(fileURLWithPath: arguments[index + 1], isDirectory: true))
+            return
+        }
+
         NSApp.mainMenu = makeMainMenu()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         setStatusIcon(recording: false)
@@ -70,12 +75,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func makeStatusMenu() -> NSMenu {
         let menu = NSMenu()
-        addCapture(to: menu, "Capture Area", "4", #selector(captureArea))
-        addCapture(to: menu, "Capture Window", "5", #selector(captureWindow))
-        addCapture(to: menu, "Capture Fullscreen", "3", #selector(captureFullscreen))
-        addCapture(to: menu, "Capture Text (OCR)", "7", #selector(captureText))
+        addCapture(to: menu, "Capture Area", "viewfinder", "4", #selector(captureArea))
+        addCapture(to: menu, "Capture Window", "macwindow", "5", #selector(captureWindow))
+        addCapture(to: menu, "Capture Full Screen", "display", "3", #selector(captureFullscreen))
+        addCapture(to: menu, "Capture Text", "text.viewfinder", "7", #selector(captureText))
         menu.addItem(.separator())
-        recordItem = addCapture(to: menu, "Record Screen", "6", #selector(toggleRecording))
+        recordItem = addCapture(to: menu, "Record Screen", "record.circle", "6", #selector(toggleRecording))
         menu.addItem(.separator())
 
         menu.addItem(withTitle: "Open Image…", action: #selector(openImage), keyEquivalent: "").target = self
@@ -91,8 +96,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @discardableResult
-    private func addCapture(to menu: NSMenu, _ title: String, _ key: String, _ action: Selector) -> NSMenuItem {
+    private func addCapture(to menu: NSMenu, _ title: String, _ symbol: String, _ key: String, _ action: Selector) -> NSMenuItem {
         let item = menu.addItem(withTitle: title, action: action, keyEquivalent: key)
+        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
         item.keyEquivalentModifierMask = [.option, .shift]
         item.target = self
         return item
@@ -183,11 +189,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let (image, _) = try await pickArea() else { return }
             let text = try await recognizeText(in: image)
             if text.isEmpty {
-                Toast.show("No text found")
+                Toast.show("No text found", symbol: "text.magnifyingglass")
             } else {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(text, forType: .string)
-                Toast.show("Copied \(text.count) characters")
+                Toast.show("Copied \(text.count) characters", symbol: "doc.on.doc.fill")
             }
         }
     }
@@ -211,7 +217,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         recordItem.title = "Record Screen"
         switch result {
         case .success(let url):
-            Toast.show("Saved recording")
+            Toast.show("Recording saved")
             NSWorkspace.shared.activateFileViewerSelecting([url])
         case .failure(let error):
             NSAlert(error: error).runModal()

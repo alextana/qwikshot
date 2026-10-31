@@ -56,6 +56,29 @@ enum SelfTest {
         return true
     }
 
+    /// `Qwikshot --ui-snapshots folder` opens the editor, a preview and a toast, then writes
+    /// each window's view hierarchy to a PNG. It checks layout without Screen Recording
+    /// permission, but real glass only composites on screen.
+    @MainActor
+    static func snapshotUI(folder: URL) {
+        guard let base = makeBase(width: 1600, height: 1000) else { exit(1) }
+        let shot = Shot(image: base, scale: 2, url: folder.appendingPathComponent("sample.png"))
+        Store.write(base, scale: 2, to: shot.url, type: .png)
+        EditorWindowController.open(shot)
+        PreviewManager.shared.show(shot)
+        Toast.show("Copied", symbol: "doc.on.doc.fill")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            for (index, window) in NSApp.windows.enumerated() where window.isVisible {
+                guard let view = window.contentView,
+                      let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
+                view.cacheDisplay(in: view.bounds, to: rep)
+                let name = "window-\(index)-\(Int(view.bounds.width))x\(Int(view.bounds.height)).png"
+                try? rep.representation(using: .png, properties: [:])?.write(to: folder.appendingPathComponent(name))
+            }
+            exit(0)
+        }
+    }
+
     /// RGBA of the pixel at `x`, `y`, measured from the top left.
     private static func pixel(_ image: CGImage, x: Int, y: Int) -> [UInt8] {
         var bytes = [UInt8](repeating: 0, count: 4)

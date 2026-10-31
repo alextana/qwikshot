@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// The floating thumbnails stacked in the bottom-left corner after each capture.
 @MainActor
@@ -10,102 +11,87 @@ final class PreviewManager {
     func show(_ shot: Shot) {
         let panel = PreviewPanel(shot: shot) { [weak self] panel in self?.remove(panel) }
         panels.append(panel)
-        layout()
+        layout(animated: false, placing: panel)
         panel.orderFrontRegardless()
+        panel.present()
     }
 
     private func remove(_ panel: PreviewPanel) {
-        panel.orderOut(nil)
         panels.removeAll { $0 === panel }
-        layout()
+        panel.exit()
+        layout(animated: true)
     }
 
-    private func layout() {
+    private func layout(animated: Bool, placing new: PreviewPanel? = nil) {
         guard let screen = Capture.screenUnderMouse() else { return }
-        var y = screen.visibleFrame.minY + 16
+        var y = screen.visibleFrame.minY
         for panel in panels.reversed() {
-            panel.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX + 16, y: y))
-            y += panel.frame.height + 10
+            let origin = NSPoint(x: screen.visibleFrame.minX, y: y)
+            if animated && panel !== new {
+                panel.animator().setFrameOrigin(origin)
+            } else {
+                panel.setFrameOrigin(origin)
+            }
+            y += panel.frame.height - 12
         }
     }
 }
 
-private final class PreviewPanel: NSPanel {
-    init(shot: Shot, onClose: @escaping (PreviewPanel) -> Void) {
-        let width: CGFloat = 260
-        let aspect = CGFloat(shot.image.height) / CGFloat(shot.image.width)
-        let size = NSSize(width: width, height: min(max(width * aspect, 110), 260))
-        super.init(contentRect: NSRect(origin: .zero, size: size),
-                   styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        level = .floating
-        isOpaque = false
-        backgroundColor = .clear
-        hasShadow = true
-        hidesOnDeactivate = false
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        contentView = PreviewView(shot: shot, panel: self, onClose: onClose)
-    }
-
-    override var canBecomeKey: Bool { false }
+@Observable
+private final class PreviewState {
+    var presented = false
+    var hovering = false
 }
 
-private final class PreviewView: NSView, NSDraggingSource {
+private final class PreviewPanel: FloatingPanel {
+    private static let margin: CGFloat = 20
+
     private let shot: Shot
-    private weak var panel: PreviewPanel?
+    private let state = PreviewState()
     private let onClose: (PreviewPanel) -> Void
-    private let controls = NSStackView()
     private var dismissTimer: Timer?
-    private var mouseDownPoint: NSPoint?
 
-    init(shot: Shot, panel: PreviewPanel, onClose: @escaping (PreviewPanel) -> Void) {
+    init(shot: Shot, onClose: @escaping (PreviewPanel) -> Void) {
         self.shot = shot
-        self.panel = panel
         self.onClose = onClose
-        super.init(frame: panel.contentRect(forFrameRect: panel.frame))
-        wantsLayer = true
-        layer?.cornerRadius = 10
-        layer?.masksToBounds = true
-        layer?.borderWidth = 1
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.25).cgColor
-        layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        let imageWidth: CGFloat = 240
+        let aspect = CGFloat(shot.image.height) / CGFloat(shot.image.width)
+        let imageSize = NSSize(width: imageWidth, height: min(max(imageWidth * aspect, 96), 240))
+        let inset = PreviewCard.inset + Self.margin
+        super.init(size: NSSize(width: imageSize.width + inset * 2, height: imageSize.height + inset * 2))
 
-        let imageView = NSImageView(frame: bounds)
-        imageView.image = shot.nsImage
-        imageView.imageScaling = .scaleProportionallyUpOrDown
-        imageView.autoresizingMask = [.width, .height]
-        addSubview(imageView)
-
-        controls.orientation = .horizontal
-        controls.spacing = 6
-        controls.edgeInsets = NSEdgeInsets(top: 6, left: 8, bottom: 6, right: 8)
-        controls.wantsLayer = true
-        controls.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.65).cgColor
-        controls.layer?.cornerRadius = 8
-        controls.isHidden = true
-        controls.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(controls)
-        NSLayoutConstraint.activate([
-            controls.centerXAnchor.constraint(equalTo: centerXAnchor),
-            controls.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
-        addControl("doc.on.doc", "Copy", #selector(copyShot))
-        addControl("square.and.arrow.down", "Save", #selector(saveShot))
-        addControl("pencil.tip.crop.circle", "Annotate", #selector(annotate))
-        addControl("pin", "Pin to screen", #selector(pin))
-        addControl("xmark", "Dismiss", #selector(dismiss))
-
+        let card = PreviewCard(image: shot.nsImage, url: shot.url, imageSize: imageSize, state: state, actions: .init(
+            copy: { [weak self] in self?.copyShot() },
+            save: { [weak self] in self?.saveShot() },
+            annotate: { [weak self] in self?.annotate() },
+            pin: { [weak self] in self?.pin() },
+            dismiss: { [weak self] in self?.dismiss() }))
+        let host = PanelHostingView(rootView: card)
+        host.onHover = { [weak self] hovering in self?.hoverChanged(hovering) }
+        contentView = host
         scheduleDismiss()
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    func present() {
+        DispatchQueue.main.async { [state] in
+            withAnimation(Motion.standard) { state.presented = true }
+        }
+    }
 
-    private func addControl(_ symbol: String, _ tip: String, _ action: Selector) {
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip) ?? NSImage()
-        let button = NSButton(image: image, target: self, action: action)
-        button.isBordered = false
-        button.contentTintColor = .white
-        button.toolTip = tip
-        controls.addArrangedSubview(button)
+    /// Leaves along the path it came in on.
+    func exit() {
+        dismissTimer?.invalidate()
+        withAnimation(Motion.standard) { state.presented = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Motion.exitDelay) { [self] in orderOut(nil) }
+    }
+
+    private func hoverChanged(_ hovering: Bool) {
+        withAnimation(Motion.standard) { state.hovering = hovering }
+        if hovering {
+            dismissTimer?.invalidate()
+        } else {
+            scheduleDismiss()
+        }
     }
 
     private func scheduleDismiss() {
@@ -116,68 +102,99 @@ private final class PreviewView: NSView, NSDraggingSource {
         }
     }
 
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        trackingAreas.forEach(removeTrackingArea)
-        addTrackingArea(NSTrackingArea(rect: bounds, options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited], owner: self))
-    }
+    private func dismiss() { onClose(self) }
 
-    override func mouseEntered(with event: NSEvent) {
-        controls.isHidden = false
-        dismissTimer?.invalidate()
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        controls.isHidden = true
-        scheduleDismiss()
-    }
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    override func mouseDown(with event: NSEvent) {
-        mouseDownPoint = event.locationInWindow
-        if event.clickCount == 2 { annotate() }
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard let start = mouseDownPoint,
-              hypot(event.locationInWindow.x - start.x, event.locationInWindow.y - start.y) > 4 else { return }
-        mouseDownPoint = nil
-        let item = NSDraggingItem(pasteboardWriter: shot.url as NSURL)
-        item.setDraggingFrame(bounds, contents: shot.nsImage)
-        beginDraggingSession(with: [item], event: event, source: self)
-    }
-
-    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
-        context == .outsideApplication ? .copy : []
-    }
-
-    @objc private func copyShot() {
+    private func copyShot() {
         Store.copy(shot.image, scale: shot.scale)
-        Toast.show("Copied to clipboard")
+        Toast.show("Copied", symbol: "doc.on.doc.fill")
         dismiss()
     }
 
-    @objc private func saveShot() {
+    private func saveShot() {
         if let url = Store.saveToFolder(shot.image, scale: shot.scale) {
-            Toast.show("Saved to \(url.deletingLastPathComponent().lastPathComponent)")
+            Toast.show("Saved to \(url.deletingLastPathComponent().lastPathComponent)", symbol: "checkmark.circle.fill")
         }
         dismiss()
     }
 
-    @objc private func annotate() {
+    private func annotate() {
         EditorWindowController.open(shot)
         dismiss()
     }
 
-    @objc private func pin() {
+    private func pin() {
         PinWindow.pin(image: shot.nsImage)
         dismiss()
     }
+}
 
-    @objc private func dismiss() {
-        dismissTimer?.invalidate()
-        if let panel { onClose(panel) }
+private struct PreviewCard: View {
+    struct Actions {
+        let copy, save, annotate, pin, dismiss: () -> Void
+    }
+
+    /// Glass around the image. The corner radii stay concentric: 22 − 8 = 14.
+    static let inset: CGFloat = 8
+
+    let image: NSImage
+    let url: URL
+    let imageSize: NSSize
+    let state: PreviewState
+    let actions: Actions
+
+    var body: some View {
+        Image(nsImage: image)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: imageSize.width, height: imageSize.height)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .onDrag { NSItemProvider(contentsOf: url) ?? NSItemProvider() }
+            .onTapGesture(count: 2, perform: actions.annotate)
+            .overlay(alignment: .bottom) {
+                if state.hovering {
+                    controls.padding(8).transition(.scale(scale: 0.9, anchor: .bottom).combined(with: .opacity))
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if state.hovering {
+                    Button("Dismiss", systemImage: "xmark", action: actions.dismiss)
+                        .labelStyle(.iconOnly)
+                        .buttonBorderShape(.circle)
+                        .buttonStyle(.glass)
+                        .padding(8)
+                        .transition(.scale(scale: 0.8, anchor: .topLeading).combined(with: .opacity))
+                }
+            }
+            .padding(Self.inset)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .offset(x: offset)
+            .opacity(state.presented ? 1 : 0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Slides in from the screen edge. With Reduce Motion it just fades.
+    private var offset: CGFloat {
+        state.presented || Motion.reduced ? 0 : -(imageSize.width + 60)
+    }
+
+    private var controls: some View {
+        GlassEffectContainer(spacing: 6) {
+            HStack(spacing: 6) {
+                control("Copy", "doc.on.doc", actions.copy)
+                control("Save", "square.and.arrow.down", actions.save)
+                control("Annotate", "pencil.tip", actions.annotate)
+                control("Pin to Screen", "pin", actions.pin)
+            }
+        }
+    }
+
+    private func control(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
+        Button(title, systemImage: symbol, action: action)
+            .labelStyle(.iconOnly)
+            .buttonBorderShape(.circle)
+            .buttonStyle(.glass)
+            .controlSize(.large)
+            .help(title)
     }
 }
 
@@ -196,6 +213,8 @@ final class PinWindow: NSPanel {
         super.init(contentRect: NSRect(origin: .zero, size: image.size),
                    styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         level = .floating
+        isOpaque = false
+        backgroundColor = .clear
         hasShadow = true
         isMovableByWindowBackground = true
         hidesOnDeactivate = false
@@ -203,8 +222,13 @@ final class PinWindow: NSPanel {
         let view = PinView(frame: NSRect(origin: .zero, size: image.size))
         view.image = image
         view.imageScaling = .scaleProportionallyUpOrDown
+        view.wantsLayer = true
+        view.layer?.cornerRadius = 14
+        view.layer?.cornerCurve = .continuous
+        view.layer?.masksToBounds = true
         view.toolTip = "Double-click to close"
         contentView = view
+        view.addCloseButton { [weak self] in self?.unpin() }
     }
 
     fileprivate func unpin() {
@@ -214,8 +238,32 @@ final class PinWindow: NSPanel {
 }
 
 private final class PinView: NSImageView {
+    private var closeButton: NSView?
+
+    func addCloseButton(action: @escaping () -> Void) {
+        let button = Button("Close", systemImage: "xmark", action: action)
+            .labelStyle(.iconOnly)
+            .buttonBorderShape(.circle)
+            .buttonStyle(.glass)
+        let host = PanelHostingView(rootView: button)
+        host.frame = NSRect(x: 4, y: bounds.height - 44, width: 40, height: 40)
+        host.autoresizingMask = [.minYMargin]
+        host.isHidden = true
+        addSubview(host)
+        closeButton = host
+    }
+
     override var mouseDownCanMoveWindow: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.filter { $0.owner === self }.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited], owner: self))
+    }
+
+    override func mouseEntered(with event: NSEvent) { closeButton?.isHidden = false }
+    override func mouseExited(with event: NSEvent) { closeButton?.isHidden = true }
 
     override func mouseDown(with event: NSEvent) {
         if event.clickCount == 2 {
@@ -226,41 +274,56 @@ private final class PinView: NSImageView {
     }
 }
 
+@Observable
+private final class ToastState {
+    var visible = false
+}
+
+private struct ToastView: View {
+    let message: String
+    let symbol: String
+    let state: ToastState
+
+    var body: some View {
+        Label(message, systemImage: symbol)
+            .font(.system(size: 13, weight: .semibold))
+            .padding(.horizontal, 18)
+            .padding(.vertical, 11)
+            .glassEffect(.regular, in: .capsule)
+            .scaleEffect(state.visible || Motion.reduced ? 1 : 0.92)
+            .blur(radius: state.visible || Motion.reduced ? 0 : 8)
+            .offset(y: state.visible || Motion.reduced ? 0 : 14)
+            .opacity(state.visible ? 1 : 0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 /// A short confirmation at the bottom centre of the screen.
 enum Toast {
     private static var panel: NSPanel?
 
     @MainActor
-    static func show(_ message: String) {
+    static func show(_ message: String, symbol: String = "checkmark.circle.fill") {
         panel?.orderOut(nil)
-        let label = NSTextField(labelWithString: message)
-        label.font = .systemFont(ofSize: 13, weight: .medium)
-        label.textColor = .white
-        label.sizeToFit()
-        let size = NSSize(width: label.frame.width + 32, height: 36)
-        let toast = NSPanel(contentRect: NSRect(origin: .zero, size: size),
-                            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        toast.level = .floating
-        toast.isOpaque = false
-        toast.backgroundColor = .clear
+        let size = NSSize(width: 420, height: 100)
+        let toast = FloatingPanel(size: size)
         toast.ignoresMouseEvents = true
-        let content = NSView(frame: NSRect(origin: .zero, size: size))
-        content.wantsLayer = true
-        content.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.8).cgColor
-        content.layer?.cornerRadius = 10
-        label.setFrameOrigin(NSPoint(x: 16, y: (size.height - label.frame.height) / 2))
-        content.addSubview(label)
-        toast.contentView = content
+        let state = ToastState()
+        toast.contentView = NSHostingView(rootView: ToastView(message: message, symbol: symbol, state: state))
         if let screen = Capture.screenUnderMouse() {
-            toast.setFrameOrigin(NSPoint(x: screen.visibleFrame.midX - size.width / 2,
-                                         y: screen.visibleFrame.minY + 40))
+            toast.setFrameOrigin(NSPoint(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.minY + 12))
         }
         toast.orderFrontRegardless()
         panel = toast
+        DispatchQueue.main.async {
+            withAnimation(Motion.standard) { state.visible = true }
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            if panel === toast {
+            guard panel === toast else { return }
+            withAnimation(Motion.standard) { state.visible = false }
+            DispatchQueue.main.asyncAfter(deadline: .now() + Motion.exitDelay) {
                 toast.orderOut(nil)
-                panel = nil
+                if panel === toast { panel = nil }
             }
         }
     }

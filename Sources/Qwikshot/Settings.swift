@@ -12,25 +12,39 @@ private struct SettingsView: View {
     @State private var folder = Prefs.saveFolder
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
 
+    private static let shortcuts = [
+        ("Capture Area", "⌥⇧4"), ("Capture Window", "⌥⇧5"), ("Capture Full Screen", "⌥⇧3"),
+        ("Capture Text", "⌥⇧7"), ("Record Screen", "⌥⇧6"),
+    ]
+
     var body: some View {
         Form {
-            Section("After capture") {
+            Section("After Capture") {
                 Toggle("Copy to clipboard", isOn: $copyAfterCapture)
                 Toggle("Save to folder", isOn: $saveAfterCapture)
-                Toggle("Show floating preview", isOn: $showPreview)
-                Stepper("Hide preview after \(Int(previewSeconds)) s", value: $previewSeconds, in: 2...30)
+                Toggle("Show preview", isOn: $showPreview)
+                if showPreview {
+                    LabeledContent("Keep preview for") {
+                        Stepper("\(Int(previewSeconds)) seconds", value: $previewSeconds, in: 2...30)
+                    }
+                }
                 Toggle("Play sound", isOn: $playSound)
             }
             Section("Saving") {
-                LabeledContent("Folder") {
-                    Button(folder.lastPathComponent, action: chooseFolder)
+                LabeledContent("Save to") {
+                    Button(folder.lastPathComponent, systemImage: "folder", action: chooseFolder)
                 }
             }
             Section("Recording") {
                 Toggle("Show mouse clicks", isOn: $recordClicks)
             }
-            Section("General") {
-                Toggle("Launch at login", isOn: $launchAtLogin)
+            Section("Shortcuts") {
+                ForEach(Self.shortcuts, id: \.0) { title, keys in
+                    LabeledContent(title, value: keys)
+                }
+            }
+            Section {
+                Toggle("Open at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in
                         if enabled {
                             try? SMAppService.mainApp.register()
@@ -42,7 +56,8 @@ private struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 420, height: 470)
+        .animation(Motion.standard, value: showPreview)
+        .frame(width: 460, height: 620)
     }
 
     private func chooseFolder() {
