@@ -30,7 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setStatusIcon(recording: false)
         statusItem.menu = makeStatusMenu()
 
-        let modifiers = optionKey | shiftKey
+        let modifiers = cmdKey | shiftKey
         HotKeys.shared.register(keyCode: kVK_ANSI_3, modifiers: modifiers) { [weak self] in self?.captureFullscreen() }
         HotKeys.shared.register(keyCode: kVK_ANSI_4, modifiers: modifiers) { [weak self] in self?.captureArea() }
         HotKeys.shared.register(keyCode: kVK_ANSI_5, modifiers: modifiers) { [weak self] in self?.captureWindow() }
@@ -110,7 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func addCapture(to menu: NSMenu, _ title: String, _ symbol: String, _ key: String, _ action: Selector) -> NSMenuItem {
         let item = menu.addItem(withTitle: title, action: action, keyEquivalent: key)
         item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
-        item.keyEquivalentModifierMask = [.option, .shift]
+        item.keyEquivalentModifierMask = [.command, .shift]
         item.target = self
         return item
     }

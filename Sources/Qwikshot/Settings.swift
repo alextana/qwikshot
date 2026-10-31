@@ -14,8 +14,8 @@ private struct SettingsView: View {
     @State private var checksAutomatically = Updates.shared.automaticallyChecks
 
     private static let shortcuts = [
-        ("Capture Area", "⌥⇧4"), ("Capture Window", "⌥⇧5"), ("Capture Full Screen", "⌥⇧3"),
-        ("Capture Text", "⌥⇧7"), ("Record Screen", "⌥⇧6"),
+        ("Capture Area", "⌘⇧4"), ("Capture Window", "⌘⇧5"), ("Capture Full Screen", "⌘⇧3"),
+        ("Capture Text", "⌘⇧7"), ("Record Screen", "⌘⇧6"),
     ]
 
     var body: some View {

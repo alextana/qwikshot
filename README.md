@@ -29,13 +29,15 @@ installing, run `./build.sh`, which signs ad hoc if the certificate doesn't exis
 
 | Shortcut | Action |
 | --- | --- |
-| ⌥⇧3 | Capture the display under the cursor |
-| ⌥⇧4 | Capture an area (Return selects the whole display, Esc cancels) |
-| ⌥⇧5 | Capture a window |
-| ⌥⇧6 | Start or stop recording an area to MP4 |
-| ⌥⇧7 | Copy text from an area (OCR) |
+| ⌘⇧3 | Capture the display under the cursor |
+| ⌘⇧4 | Capture an area (Return selects the whole display, Esc cancels) |
+| ⌘⇧5 | Capture a window |
+| ⌘⇧6 | Start or stop recording an area to MP4 |
+| ⌘⇧7 | Copy text from an area (OCR) |
 
-Shortcuts are set in `AppDelegate.applicationDidFinishLaunching`.
+⌘⇧3, ⌘⇧4 and ⌘⇧5 are also the macOS screenshot shortcuts, so turn those off under System Settings >
+Keyboard > Keyboard Shortcuts > Screenshots. Shortcuts are set in
+`AppDelegate.applicationDidFinishLaunching`.
 
 ## Editor
 
