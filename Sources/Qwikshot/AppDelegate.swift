@@ -20,6 +20,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             exit(passed ? 0 : 1)
         }
 
+        if let index = arguments.firstIndex(of: "--readme-art"), arguments.indices.contains(index + 1) {
+            exit(ReadmeArt.generate(folder: URL(fileURLWithPath: arguments[index + 1], isDirectory: true)) ? 0 : 1)
+        }
+
         if let index = arguments.firstIndex(of: "--ui-snapshots"), arguments.indices.contains(index + 1) {
             SelfTest.snapshotUI(folder: URL(fileURLWithPath: arguments[index + 1], isDirectory: true))
             return

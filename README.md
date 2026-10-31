@@ -1,84 +1,99 @@
-# Qwikshot
+<p align="center">
+  <img src="docs/images/icon.png" alt="Qwikshot app icon" width="128">
+</p>
 
-A local menu bar screenshot tool for macOS 26 or later. Open source under the MIT license. No account needed, and the only
-network use is checking for updates.
+<h1 align="center">Qwikshot</h1>
 
-## Download
+<p align="center">
+  <strong>Capture, mark up and share your screen on Mac.</strong><br>
+  Free, open source, and built for macOS with Liquid Glass.
+</p>
 
-Get the latest zip from [Releases](https://github.com/alextana/qwikshot/releases), unzip it, and
-move `Qwikshot.app` to `/Applications`. It needs macOS 26 or later on Apple silicon.
+<p align="center">
+  <a href="https://github.com/alextana/qwikshot/releases/latest"><img src="https://img.shields.io/github/v/release/alextana/qwikshot?label=download&color=3478f6" alt="Download the latest release"></a>
+  <img src="https://img.shields.io/badge/macOS-26%2B-555" alt="Requires macOS 26 or later">
+  <img src="https://img.shields.io/badge/Apple%20silicon-required-555" alt="Requires Apple silicon">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/alextana/qwikshot?color=555" alt="MIT license"></a>
+</p>
 
-Qwikshot isn't notarized, so macOS blocks it the first time you open it. Go to System Settings >
-Privacy & Security and choose Open Anyway. After that, use Check for Updates… in the menu.
+<p align="center">
+  <img src="docs/images/annotate.png" alt="A mock dashboard marked up with a red box, an arrow, a note, numbered steps and a pixelated email address" width="760">
+</p>
 
-## Build from source
+Qwikshot lives in your menu bar and replaces the built-in Mac screenshot tool. Press a shortcut, grab what you need, and it's on your clipboard, ready to paste. No account, no subscription, and your captures stay on your Mac.
 
-```bash
-./install.sh
-```
+## Features
 
-This builds `Qwikshot.app`, replaces the copy in `/Applications`, and opens it. Run it again to
-update. On first capture, turn on Qwikshot under Privacy & Security > Screen & System Audio
-Recording, then reopen the app.
+- **Capture anything:** an area, a window, or the full screen. The screen freezes while you select, and a magnifier helps you line up the edges.
+- **Instant preview:** a thumbnail appears after each capture, so you can copy, save, annotate or pin it, or drag it straight into another app.
+- **Mark it up:** add arrows, lines, boxes, circles, freehand pen, highlights, text and numbered steps, then crop to fit.
+- **Hide or highlight:** pixelate sensitive details, or blur everything outside the part that matters.
+- **Record your screen:** save any area as an MP4, with optional mouse click highlights. Recordings don't include sound.
+- **Copy text from anything:** select part of the screen and Qwikshot copies the text in it.
+- **Pin to screen:** keep an image floating above your other windows for reference.
+- **Recent captures:** your last 30 are one click away in the menu.
+- **Automatic updates:** new versions install from inside the app.
 
-The first run creates a self-signed certificate, "Qwikshot Local Signing", in your login keychain.
-Every build is signed with it, so macOS keeps the permission across updates. To build without
-installing, run `./build.sh`, which signs ad hoc if the certificate doesn't exist.
+### Annotate without leaving your flow
+
+The editor keeps your image front and centre, with every tool in a floating palette. Each tool has a single-key shortcut, and everything you add can be moved or undone.
+
+<p align="center">
+  <img src="docs/images/toolbar.png" alt="The editor's Liquid Glass tool palette" width="620">
+</p>
+
+### Focus on what matters
+
+Draw a rectangle with the Focus tool and everything outside it blurs. Your arrows and notes stay sharp.
+
+<p align="center">
+  <img src="docs/images/focus.png" alt="The same dashboard with everything blurred except the chart and its note" width="760">
+</p>
+
+> Focus is for drawing attention, not hiding secrets. Use Pixelate for anything private, and check the result before you share it.
+
+## Install
+
+1. Download the zip from the [latest release](https://github.com/alextana/qwikshot/releases/latest), unzip it, and move **Qwikshot** to your Applications folder.
+2. Open it. Qwikshot isn't notarized by Apple, so macOS blocks it the first time. Go to **System Settings > Privacy & Security** and choose **Open Anyway**.
+3. Press ⌘⇧4 and allow Qwikshot under **Privacy & Security > Screen & System Audio Recording**, then reopen the app.
+4. Look for the viewfinder icon in your menu bar. Turn on **Open at login** in Settings to keep it ready.
+
+### Replace the built-in screenshot tool
+
+Qwikshot uses the same shortcuts as macOS, so turn the built-in ones off: go to **System Settings > Keyboard > Keyboard Shortcuts > Screenshots** and untick them.
 
 ## Shortcuts
 
 | Shortcut | Action |
 | --- | --- |
-| ⌘⇧3 | Capture the display under the cursor |
-| ⌘⇧4 | Capture an area (Return selects the whole display, Esc cancels) |
+| ⌘⇧3 | Capture the screen under your cursor |
+| ⌘⇧4 | Capture an area (Return selects the whole screen, Esc cancels) |
 | ⌘⇧5 | Capture a window |
-| ⌘⇧6 | Start or stop recording an area to MP4 |
-| ⌘⇧7 | Copy text from an area (OCR) |
+| ⌘⇧6 | Start or stop recording |
+| ⌘⇧7 | Copy text from an area |
 
-⌘⇧3, ⌘⇧4 and ⌘⇧5 are also the macOS screenshot shortcuts, so turn those off under System Settings >
-Keyboard > Keyboard Shortcuts > Screenshots. Shortcuts are set in
-`AppDelegate.applicationDidFinishLaunching`.
+In the editor:
 
-## Editor
+| Key | Tool | Key | Tool |
+| --- | --- | --- | --- |
+| V | Select | T | Text |
+| A | Arrow | B | Pixelate |
+| L | Line | F | Focus |
+| R | Rectangle | N | Numbered step |
+| O | Ellipse | C | Crop |
+| P | Pen | H | Highlighter |
 
-Keys: V select, A arrow, L line, R rectangle, O ellipse, P pen, H highlighter, T text, B pixelate,
-F focus (blurs everything outside a rectangle), N numbered step, C crop. Shift constrains shapes and
-lines. ⌘Z undo, ⇧⌘Z redo, ⌘C copy, ⌘S save.
+Hold Shift to draw squares and straight lines. ⌘Z undoes, ⇧⌘Z redoes, ⌘C copies and ⌘S saves.
 
-## Files
+## Privacy
 
-- Captures: the last 30 are kept in `~/Library/Application Support/Qwikshot/History`.
-- Saves and recordings: the folder chosen in Settings (Desktop by default).
+Qwikshot has no accounts or analytics. The only time it goes online is to check for updates, and you choose whether that happens automatically. Captures are saved on your Mac: your last 30 in `~/Library/Application Support/Qwikshot/History`, and anything you save or record in the folder you pick in Settings, which is your Desktop by default.
 
-## Test
+## Contributing
 
-```bash
-.build/release/Qwikshot --render-test /tmp/qwikshot-test.png
-```
+Qwikshot is built with Swift, AppKit and SwiftUI. See the [development guide](docs/DEVELOPMENT.md) to build it from source.
 
-Renders every annotation type, then checks focus blur, crop sizing, PNG DPI, and OCR. It needs no
-permissions.
+## License
 
-```bash
-.build/release/Qwikshot --ui-snapshots /tmp/qwikshot-ui
-```
-
-Writes each window's layout to a PNG. Liquid Glass only composites on screen, so these show layout,
-not the material.
-
-## Release
-
-1. Raise the number in `VERSION` and commit.
-2. Run `Scripts/release.sh`.
-
-This builds, signs and publishes a GitHub release, and every installed copy finds it through the
-update feed in `build.sh`. Releases need the "Qwikshot Local Signing" certificate and the Sparkle
-private key, both in the maintainer's login keychain. If you fork the project, generate your own
-with `Scripts/setup-signing.sh` and Sparkle's `generate_keys`, then replace the feed URL and
-`SUPublicEDKey` in `build.sh`.
-
-## Design
-
-The interface uses Liquid Glass through SwiftUI, with a native toolbar in the editor. Springs are
-critically damped, panels leave the way they came, and Reduce Motion replaces movement with fades.
-`Scripts/make-icon.swift` regenerates the app icon.
+[MIT](LICENSE)
