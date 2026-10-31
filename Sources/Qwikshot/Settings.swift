@@ -86,6 +86,7 @@ enum SettingsWindow {
             created.center()
             window = created
         }
+        if let window { DockPresence.track(window) }
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

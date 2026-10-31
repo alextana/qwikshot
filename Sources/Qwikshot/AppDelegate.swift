@@ -45,13 +45,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        DockPresence.bringForward()
+        return false
+    }
+
     // MARK: Menus
 
-    /// The app shows no menu bar, but this is what makes ⌘Z, ⌘C and ⌘V work in the editor.
+    /// Shown while a window puts the app in the Dock. At other times it's still what
+    /// makes ⌘Z, ⌘C and ⌘V work.
     private func makeMainMenu() -> NSMenu {
         let main = NSMenu()
 
         let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
+        appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit Qwikshot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         main.addItem(submenu: appMenu, title: "Qwikshot")
 

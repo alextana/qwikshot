@@ -4,7 +4,12 @@ import ImageIO
 /// `Qwikshot --render-test out.png` draws every annotation over a synthetic image,
 /// so the renderer can be checked without Screen Recording permission.
 enum SelfTest {
+    @MainActor
     static func run(output: URL) -> Bool {
+        guard dockFollowsWindows() else {
+            print("dock test FAILED")
+            return false
+        }
         let scale: CGFloat = 2
         guard let base = makeBase(width: 1600, height: 1000) else { return false }
         let renderer = Renderer(base: base, scale: scale)
@@ -54,6 +59,25 @@ enum SelfTest {
         }
         print("render test passed: \(output.path)")
         return true
+    }
+
+    /// The Dock icon must outlast all but the final window, then go.
+    @MainActor
+    private static func dockFollowsWindows() -> Bool {
+        func makeWindow() -> NSWindow {
+            let window = NSWindow(contentRect: .zero, styleMask: .titled, backing: .buffered, defer: true)
+            window.isReleasedWhenClosed = false
+            return window
+        }
+        let first = makeWindow(), second = makeWindow()
+        NSApp.setActivationPolicy(.accessory)
+        DockPresence.track(first)
+        DockPresence.track(second)
+        let shownWhileOpen = NSApp.activationPolicy() == .regular
+        first.close()
+        let keptForLastWindow = NSApp.activationPolicy() == .regular
+        second.close()
+        return shownWhileOpen && keptForLastWindow && NSApp.activationPolicy() == .accessory
     }
 
     /// `Qwikshot --ui-snapshots folder` opens the editor, a preview and a toast, then writes

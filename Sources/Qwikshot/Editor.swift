@@ -39,6 +39,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSTool
     static func open(_ shot: Shot) {
         let controller = EditorWindowController(shot: shot)
         Self.open.append(controller)
+        if let window = controller.window { DockPresence.track(window) }
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
         controller.fit()
