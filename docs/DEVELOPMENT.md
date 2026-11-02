@@ -54,4 +54,7 @@ If you fork the project, generate your own with `Scripts/setup-signing.sh` and S
 The interface uses Liquid Glass through SwiftUI, with a native toolbar in the editor. Springs are
 critically damped, panels leave the way they came, and Reduce Motion replaces movement with fades.
 
-Shortcuts are set in `AppDelegate.applicationDidFinishLaunching`.
+Shortcuts are set in `AppDelegate.applicationDidFinishLaunching`, and listed in `CaptureShortcut`.
+
+The setup guide opens once, on the first launch with `setupShown` unset. To see it again as a new
+user would, run `defaults delete local.qwikshot.app setupShown` and reopen the app.

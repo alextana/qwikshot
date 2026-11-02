@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setStatusIcon(recording: false)
         statusItem.menu = makeStatusMenu()
 
-        let modifiers = cmdKey | shiftKey
+        let modifiers = CaptureShortcut.modifiers
         HotKeys.shared.register(keyCode: kVK_ANSI_3, modifiers: modifiers) { [weak self] in self?.captureFullscreen() }
         HotKeys.shared.register(keyCode: kVK_ANSI_4, modifiers: modifiers) { [weak self] in self?.captureArea() }
         HotKeys.shared.register(keyCode: kVK_ANSI_5, modifiers: modifiers) { [weak self] in self?.captureWindow() }
@@ -47,6 +47,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let index = arguments.firstIndex(of: "--edit"), arguments.indices.contains(index + 1),
            let shot = Store.load(URL(fileURLWithPath: arguments[index + 1])) {
             EditorWindowController.open(shot)
+        } else if !Prefs.flag(Prefs.setupShown) {
+            UserDefaults.standard.set(true, forKey: Prefs.setupShown)
+            SetupWindow.show()
         }
     }
 
@@ -104,6 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(recent)
         menu.addItem(.separator())
 
+        menu.addItem(withTitle: "Setup Guide…", action: #selector(showSetup), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Check for Updates…", action: #selector(Updates.checkForUpdates), keyEquivalent: "").target = Updates.shared
         menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
         menu.addItem(withTitle: "Quit Qwikshot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -255,6 +259,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func showSettings() { SettingsWindow.show() }
+    @objc private func showSetup() { SetupWindow.show() }
 
     // MARK: Capture helpers
 

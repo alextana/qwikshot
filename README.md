@@ -56,12 +56,16 @@ Draw a rectangle with the Focus tool and everything outside it blurs. Your arrow
 
 1. Download the zip from the [latest release](https://github.com/alextana/qwikshot/releases/latest), unzip it, and move **Qwikshot** to your Applications folder.
 2. Open it. Qwikshot isn't notarized by Apple, so macOS blocks it the first time. Go to **System Settings > Privacy & Security** and choose **Open Anyway**.
-3. Press ⌘⇧4 and allow Qwikshot under **Privacy & Security > Screen & System Audio Recording**, then reopen the app.
+3. Follow the setup guide that opens. It walks you through the two settings below and shows you the shortcuts. You can reopen it with **Setup Guide…** in the menu bar.
 4. Look for the viewfinder icon in your menu bar. Turn on **Open at login** in Settings to keep it ready.
+
+### Allow screen capture
+
+Turn on Qwikshot under **Privacy & Security > Screen & System Audio Recording**, then reopen the app.
 
 ### Replace the built-in screenshot tool
 
-Qwikshot uses the same shortcuts as macOS, so turn the built-in ones off: go to **System Settings > Keyboard > Keyboard Shortcuts > Screenshots** and untick them.
+Qwikshot uses the same shortcuts as macOS, so turn the built-in ones off: go to **System Settings > Keyboard > Keyboard Shortcuts > Screenshots** and untick them. The setup guide shows which keys macOS still holds.
 
 ## Shortcuts
 

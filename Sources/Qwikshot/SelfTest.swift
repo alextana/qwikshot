@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import ImageIO
 
 /// `Qwikshot --render-test out.png` draws every annotation over a synthetic image,
@@ -8,6 +9,10 @@ enum SelfTest {
     static func run(output: URL) -> Bool {
         guard dockFollowsWindows() else {
             print("dock test FAILED")
+            return false
+        }
+        guard findsHeldShortcuts() else {
+            print("shortcut test FAILED")
             return false
         }
         let scale: CGFloat = 2
@@ -80,6 +85,21 @@ enum SelfTest {
         return shownWhileOpen && keptForLastWindow && NSApp.activationPolicy() == .accessory
     }
 
+    /// Only an enabled Screenshots hotkey with exactly our modifiers counts: ⌃⌘⇧5,
+    /// a copy-to-clipboard style variant, and ⌘⇧6 don't.
+    private static func findsHeldShortcuts() -> Bool {
+        func hotKey(_ code: Int, _ modifiers: Int, enabled: Bool) -> [String: Any] {
+            [kHISymbolicHotKeyCode: code, kHISymbolicHotKeyModifiers: modifiers, kHISymbolicHotKeyEnabled: enabled]
+        }
+        let held = CaptureShortcut.held(by: [
+            hotKey(kVK_ANSI_4, CaptureShortcut.modifiers, enabled: true),
+            hotKey(kVK_ANSI_3, CaptureShortcut.modifiers, enabled: false),
+            hotKey(kVK_ANSI_5, CaptureShortcut.modifiers | controlKey, enabled: true),
+            hotKey(kVK_ANSI_6, CaptureShortcut.modifiers, enabled: true),
+        ])
+        return held == ["⌘⇧4"]
+    }
+
     /// `Qwikshot --ui-snapshots folder` opens the editor, a preview and a toast, then writes
     /// each window's view hierarchy to a PNG. It checks layout without Screen Recording
     /// permission, but real glass only composites on screen.
@@ -91,6 +111,7 @@ enum SelfTest {
         EditorWindowController.open(shot)
         PreviewManager.shared.show(shot)
         Toast.show("Copied", symbol: "doc.on.doc.fill")
+        SetupWindow.show()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             for (index, window) in NSApp.windows.enumerated() where window.isVisible {
                 guard let view = window.contentView,

@@ -13,11 +13,6 @@ private struct SettingsView: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var checksAutomatically = Updates.shared.automaticallyChecks
 
-    private static let shortcuts = [
-        ("Capture Area", "⌘⇧4"), ("Capture Window", "⌘⇧5"), ("Capture Full Screen", "⌘⇧3"),
-        ("Capture Text", "⌘⇧7"), ("Record Screen", "⌘⇧6"),
-    ]
-
     var body: some View {
         Form {
             Section("After Capture") {
@@ -40,8 +35,8 @@ private struct SettingsView: View {
                 Toggle("Show mouse clicks", isOn: $recordClicks)
             }
             Section("Shortcuts") {
-                ForEach(Self.shortcuts, id: \.0) { title, keys in
-                    LabeledContent(title, value: keys)
+                ForEach(CaptureShortcut.all, id: \.keyCode) { shortcut in
+                    LabeledContent(shortcut.title, value: shortcut.keys)
                 }
             }
             Section("Updates") {

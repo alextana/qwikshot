@@ -123,6 +123,7 @@ enum Prefs {
     static let playSound = "playSound"
     static let previewSeconds = "previewSeconds"
     static let recordClicks = "recordClicks"
+    static let setupShown = "setupShown"
 
     static func registerDefaults() {
         UserDefaults.standard.register(defaults: [
